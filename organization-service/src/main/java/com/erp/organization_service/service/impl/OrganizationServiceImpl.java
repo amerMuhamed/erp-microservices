@@ -69,8 +69,6 @@ public class OrganizationServiceImpl implements OrganizationService {
         if (request.active() != null) {
             organization.setActive(request.active());
         }
-
-        // Flush so that @PreUpdate timestamps are reflected in the response.
         return OrganizationResponse.from(organizationRepository.saveAndFlush(organization));
     }
 

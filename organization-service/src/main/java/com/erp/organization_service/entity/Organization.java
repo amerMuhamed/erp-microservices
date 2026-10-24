@@ -5,16 +5,11 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 
 @Entity
 @Table(
@@ -24,7 +19,7 @@ import java.time.temporal.ChronoUnit;
                 columnNames = "code"
         )
 )
-public class Organization {
+public class Organization extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -48,12 +43,6 @@ public class Organization {
     @Column(name = "active", nullable = false)
     private boolean active = true;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private Instant updatedAt;
-
     protected Organization() {
         // Required by JPA
     }
@@ -63,23 +52,6 @@ public class Organization {
         this.code = code;
         this.email = email;
         this.active = active;
-    }
-
-    @PrePersist
-    void onCreate() {
-        Instant now = now();
-        this.createdAt = now;
-        this.updatedAt = now;
-    }
-
-    @PreUpdate
-    void onUpdate() {
-        this.updatedAt = now();
-    }
-
-    private static Instant now() {
-        // MySQL DATETIME(6) stores microseconds; truncate so responses match persisted values.
-        return Instant.now().truncatedTo(ChronoUnit.MICROS);
     }
 
     public Long getId() {
@@ -116,13 +88,5 @@ public class Organization {
 
     public void setActive(boolean active) {
         this.active = active;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public Instant getUpdatedAt() {
-        return updatedAt;
     }
 }

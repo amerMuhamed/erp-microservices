@@ -2,7 +2,7 @@ package com.erp.organization_service.dto;
 
 import com.erp.organization_service.entity.Organization;
 
-import java.time.Instant;
+import java.util.Date;
 
 public record OrganizationResponse(
         Long id,
@@ -10,8 +10,8 @@ public record OrganizationResponse(
         String code,
         String email,
         boolean active,
-        Instant createdAt,
-        Instant updatedAt
+        Date createdDate,
+        Date modifiedDate
 ) {
 
     public static OrganizationResponse from(Organization organization) {
@@ -21,8 +21,8 @@ public record OrganizationResponse(
                 organization.getCode(),
                 organization.getEmail(),
                 organization.isActive(),
-                organization.getCreatedAt(),
-                organization.getUpdatedAt()
+                organization.getCreatedDate(),
+                organization.getModifiedDate()
         );
     }
 }
