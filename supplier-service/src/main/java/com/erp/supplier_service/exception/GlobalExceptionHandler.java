@@ -44,6 +44,32 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(OrganizationReferenceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleOrganizationReferenceNotFound(
+            OrganizationReferenceNotFoundException ex,
+            HttpServletRequest request
+    ) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(OrganizationServiceUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleOrganizationServiceUnavailable(
+            OrganizationServiceUnavailableException ex,
+            HttpServletRequest request
+    ) {
+        log.warn("Organization service unavailable on {}: {}", request.getRequestURI(), ex.getMessage());
+        return build(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(OrganizationServiceResponseException.class)
+    public ResponseEntity<ErrorResponse> handleOrganizationServiceResponse(
+            OrganizationServiceResponseException ex,
+            HttpServletRequest request
+    ) {
+        log.warn("Unexpected organization service response on {}: {}", request.getRequestURI(), ex.getMessage());
+        return build(HttpStatus.BAD_GATEWAY, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(
             MethodArgumentNotValidException ex,

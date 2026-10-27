@@ -1,17 +1,23 @@
 package com.erp.supplier_service;
 
+import com.erp.supplier_service.client.OrganizationServiceClient;
 import com.erp.supplier_service.entity.Supplier;
+import com.erp.supplier_service.exception.OrganizationReferenceNotFoundException;
+import com.erp.supplier_service.exception.OrganizationServiceUnavailableException;
 import com.erp.supplier_service.repository.SupplierRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.nullValue;
+import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -31,6 +37,9 @@ class SupplierApiIntegrationTests {
 
     @Autowired
     private SupplierRepository supplierRepository;
+
+    @MockitoBean
+    private OrganizationServiceClient organizationServiceClient;
 
     @Test
     void createSupplierReturnsCreatedSupplier() throws Exception {
@@ -151,6 +160,48 @@ class SupplierApiIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Renamed"))
                 .andExpect(jsonPath("$.active").value(false));
+    }
+
+    @Test
+    void createFailsWithNotFoundWhenOrganizationDoesNotExist() throws Exception {
+        willThrow(new OrganizationReferenceNotFoundException(9100L))
+                .given(organizationServiceClient).validateOrganizationExists(9100L);
+
+        mockMvc.perform(post("/api/suppliers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "organizationId": 9100,
+                                  "name": "Missing Org Supplier",
+                                  "code": "ORG-MISSING"
+                                }
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.message", containsString("Organization not found")));
+
+        assertThat(supplierRepository.existsByOrganizationIdAndCode(9100L, "ORG-MISSING")).isFalse();
+    }
+
+    @Test
+    void createFailsWithServiceUnavailableWhenOrganizationServiceIsDown() throws Exception {
+        willThrow(new OrganizationServiceUnavailableException("organization-service is unavailable"))
+                .given(organizationServiceClient).validateOrganizationExists(9101L);
+
+        mockMvc.perform(post("/api/suppliers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "organizationId": 9101,
+                                  "name": "Unavailable Org Supplier",
+                                  "code": "ORG-UNAVAILABLE"
+                                }
+                                """))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.status").value(503))
+                .andExpect(jsonPath("$.message", containsString("unavailable")));
+
+        assertThat(supplierRepository.existsByOrganizationIdAndCode(9101L, "ORG-UNAVAILABLE")).isFalse();
     }
 
     @Test

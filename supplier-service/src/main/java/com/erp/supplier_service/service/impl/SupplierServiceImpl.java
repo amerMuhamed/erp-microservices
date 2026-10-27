@@ -1,5 +1,6 @@
 package com.erp.supplier_service.service.impl;
 
+import com.erp.supplier_service.client.OrganizationServiceClient;
 import com.erp.supplier_service.dto.SupplierPatchRequest;
 import com.erp.supplier_service.dto.SupplierRequest;
 import com.erp.supplier_service.dto.SupplierResponse;
@@ -21,10 +22,13 @@ import java.util.List;
 public class SupplierServiceImpl implements SupplierService {
 
     private final SupplierRepository supplierRepository;
+    private final OrganizationServiceClient organizationServiceClient;
 
     @Override
     @Transactional
     public SupplierResponse create(SupplierRequest request) {
+        organizationServiceClient.validateOrganizationExists(request.organizationId());
+
         String code = normalizeRequired(request.code());
         if (supplierRepository.existsByOrganizationIdAndCode(request.organizationId(), code)) {
             throw new DuplicateSupplierCodeException(request.organizationId(), code);
