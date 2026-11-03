@@ -3,6 +3,9 @@ package com.erp.supplier_service.client;
 import com.erp.supplier_service.exception.OrganizationReferenceNotFoundException;
 import com.erp.supplier_service.exception.OrganizationServiceResponseException;
 import com.erp.supplier_service.exception.OrganizationServiceUnavailableException;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,16 +22,21 @@ import java.net.URI;
 @Component
 public class OrganizationServiceClient {
 
+    public static final String CIRCUIT_BREAKER_NAME = "organizationService";
+
     private static final Logger log = LoggerFactory.getLogger(OrganizationServiceClient.class);
 
     private final GenericRestClient restClient;
+    private final CircuitBreaker circuitBreaker;
     private final String baseUrl;
 
     public OrganizationServiceClient(
             GenericRestClient restClient,
+            CircuitBreakerRegistry circuitBreakerRegistry,
             @Value("${services.organization.base-url}") String baseUrl
     ) {
         this.restClient = restClient;
+        this.circuitBreaker = circuitBreakerRegistry.circuitBreaker(CIRCUIT_BREAKER_NAME);
         this.baseUrl = baseUrl;
     }
 
@@ -38,6 +46,18 @@ public class OrganizationServiceClient {
                 .buildAndExpand(organizationId)
                 .toUri();
 
+        try {
+            circuitBreaker.executeRunnable(() -> callOrganizationService(organizationId, uri));
+        } catch (CallNotPermittedException ex) {
+            log.warn("Circuit breaker '{}' is open, rejecting validation of organization {}",
+                    CIRCUIT_BREAKER_NAME, organizationId);
+            throw new OrganizationServiceUnavailableException(
+                    "organization-service is unavailable while validating organization " + organizationId
+                            + " (circuit breaker is open)", ex);
+        }
+    }
+
+    private void callOrganizationService(Long organizationId, URI uri) {
         try {
             ResponseEntity<Void> response = restClient.get(uri);
             if (!response.getStatusCode().is2xxSuccessful()) {
